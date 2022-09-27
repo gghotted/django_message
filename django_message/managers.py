@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, OuterRef, Q, Subquery
 
 
 class MessageCount(Count):
@@ -9,11 +9,16 @@ class MessageCount(Count):
 
 class MessageNotReadedCount(Count):
     def __init__(self, user_id=None):
+        from django_message.models import Participant
+
+        participant_readed_at = Participant.objects.filter(
+            thread=OuterRef('message_thread'),
+            user_id=user_id,
+        ).values('readed_at')[:1]
         super().__init__(
             'message_thread__participants__messages',
             filter=(
-                Q(message_thread__participants__messages__created_at__gte=F('message_thread__participants__readed_at')) &
-                Q(message_thread__participants__user_id=user_id)
+                Q(message_thread__participants__messages__created_at__gte=participant_readed_at)
             )
         )
 
